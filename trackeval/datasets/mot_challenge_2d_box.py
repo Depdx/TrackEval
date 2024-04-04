@@ -53,11 +53,16 @@ class MotChallenge2DBox(_BaseDataset):
         )
         self.split_to_eval = self.config["SPLIT_TO_EVAL"]
         self.output_folder = self.config["OUTPUT_FOLDER"]
-        self.output_folder = self.output_folder if isinstance(self.output_folder, str) else self.output_folder[0]
+        self.output_folder = (
+            self.output_folder
+            if isinstance(self.output_folder, str)
+            else self.output_folder[0]
+        )
         self.benchmark = self.config["BENCHMARK"]
         self.gt_folder = os.path.join(self.config["GT_FOLDER"], self.split_to_eval)
         self.gt_loc_format = self.config["GT_LOC_FORMAT"]
         self.tracker_list = ["ByteTrack"]
+        self.do_preproc = self.config["DO_PREPROC"]
 
         self.sequence_set = set()
         for seq in os.listdir(self.output_folder):
@@ -131,9 +136,6 @@ class MotChallenge2DBox(_BaseDataset):
             file = self.gt_loc_format.format(gt_folder=self.gt_folder, seq=seq)
         else:
             file = f"{self.output_folder}/{seq}.txt"
-        print("DEGUBGING: _load_raw_file")
-        print(self.output_folder)
-        print(f"file: {file}")
 
         # Load raw data from text file
         read_data, ignore_data = self._load_simple_text_file(file)
