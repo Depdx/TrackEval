@@ -51,27 +51,17 @@ class MotChallenge2DBox(_BaseDataset):
         self.config = utils.init_config(
             config, self.get_default_dataset_config(), self.get_name()
         )
-
+        self.split_to_eval = self.config["SPLIT_TO_EVAL"]
+        self.output_folder = self.config["OUTPUT_FOLDER"]
         self.benchmark = self.config["BENCHMARK"]
-        gt_set = self.config["BENCHMARK"] + "-" + self.config["SPLIT_TO_EVAL"]
-        self.gt_set = gt_set
-        if not self.config["SKIP_SPLIT_FOL"]:
-            split_fol = gt_set
-        else:
-            split_fol = ""
-        self.gt_fol = os.path.join(self.config["GT_FOLDER"], split_fol)
-        self.tracker_fol = os.path.join(self.config["TRACKERS_FOLDER"], split_fol)
-        self.should_classes_combine = False
-        self.use_super_categories = False
-        self.data_is_zipped = self.config["INPUT_AS_ZIP"]
-        self.do_preproc = self.config["DO_PREPROC"]
+        self.gt_folder = os.path.join(self.config["GT_FOLDER"], self.split_to_eval)
+        self.gt_loc_format = self.config["GT_LOC_FORMAT"]
 
-        self.output_fol = self.config["OUTPUT_FOLDER"]
-        if self.output_fol is None:
-            self.output_fol = self.tracker_fol
-
-        self.tracker_sub_fol = self.config["TRACKER_SUB_FOLDER"]
-        self.output_sub_fol = self.config["OUTPUT_SUB_FOLDER"]
+        self.sequence_set = set()
+        for _, dirs, __ in os.walk(self.gt_folder):
+            for d in dirs:
+                self.sequence_set.add(d)
+        print(f"sequence_set: {self.sequence_set}")
 
         # Get classes to eval
         self.valid_classes = ["pedestrian"]
@@ -79,6 +69,7 @@ class MotChallenge2DBox(_BaseDataset):
             cls.lower() if cls.lower() in self.valid_classes else None
             for cls in self.config["CLASSES_TO_EVAL"]
         ]
+
         if not all(self.class_list):
             raise TrackEvalException(
                 "Attempted to evaluate an invalid class. Only pedestrian class is valid."
@@ -105,102 +96,20 @@ class MotChallenge2DBox(_BaseDataset):
         if len(self.seq_list) < 1:
             raise TrackEvalException("No sequences are selected to be evaluated.")
 
-        # Check gt files exist
-        for seq in self.seq_list:
-            if not self.data_is_zipped:
-                curr_file = self.config["GT_LOC_FORMAT"].format(
-                    gt_folder=self.gt_fol, seq=seq
-                )
-                if not os.path.isfile(curr_file):
-                    print("GT file not found " + curr_file)
-                    raise TrackEvalException("GT file not found for sequence: " + seq)
-        if self.data_is_zipped:
-            curr_file = os.path.join(self.gt_fol, "data.zip")
-            if not os.path.isfile(curr_file):
-                print("GT file not found " + curr_file)
-                raise TrackEvalException(
-                    "GT file not found: " + os.path.basename(curr_file)
-                )
-
-        # Get trackers to eval
-        if self.config["TRACKERS_TO_EVAL"] is None:
-            self.tracker_list = os.listdir(self.tracker_fol)
-        else:
-            self.tracker_list = self.config["TRACKERS_TO_EVAL"]
-
-        if self.config["TRACKER_DISPLAY_NAMES"] is None:
-            self.tracker_to_disp = dict(zip(self.tracker_list, self.tracker_list))
-        elif (self.config["TRACKERS_TO_EVAL"] is not None) and (
-            len(self.config["TRACKER_DISPLAY_NAMES"]) == len(self.tracker_list)
-        ):
-            self.tracker_to_disp = dict(
-                zip(self.tracker_list, self.config["TRACKER_DISPLAY_NAMES"])
-            )
-        else:
-            raise TrackEvalException(
-                "List of tracker files and tracker display names do not match."
-            )
-
     def get_display_name(self, tracker):
-        return self.tracker_to_disp[tracker]
+        return str(tracker)
 
     def _get_seq_info(self):
         seq_list = []
         seq_lengths = {}
-        if self.config["SEQ_INFO"]:
-            seq_list = list(self.config["SEQ_INFO"].keys())
-            seq_lengths = self.config["SEQ_INFO"]
-
-            # If sequence length is 'None' tries to read sequence length from .ini files.
-            for seq, seq_length in seq_lengths.items():
-                if seq_length is None:
-                    ini_file = os.path.join(self.gt_fol, seq, "seqinfo.ini")
-                    if not os.path.isfile(ini_file):
-                        raise TrackEvalException(
-                            "ini file does not exist: "
-                            + seq
-                            + "/"
-                            + os.path.basename(ini_file)
-                        )
-                    ini_data = configparser.ConfigParser()
-                    ini_data.read(ini_file)
-                    seq_lengths[seq] = int(ini_data["Sequence"]["seqLength"])
-
-        else:
-            if self.config["SEQMAP_FILE"]:
-                seqmap_file = self.config["SEQMAP_FILE"]
-            else:
-                if self.config["SEQMAP_FOLDER"] is None:
-                    seqmap_file = os.path.join(
-                        self.config["GT_FOLDER"], "seqmaps", self.gt_set + ".txt"
-                    )
-                else:
-                    seqmap_file = os.path.join(
-                        self.config["SEQMAP_FOLDER"], self.gt_set + ".txt"
-                    )
-            if not os.path.isfile(seqmap_file):
-                print("no seqmap found: " + seqmap_file)
-                raise TrackEvalException(
-                    "no seqmap found: " + os.path.basename(seqmap_file)
-                )
-            with open(seqmap_file) as fp:
-                reader = csv.reader(fp)
-                for i, row in enumerate(reader):
-                    if i == 0 or row[0] == "":
-                        continue
-                    seq = row[0]
-                    seq_list.append(seq)
-                    ini_file = os.path.join(self.gt_fol, seq, "seqinfo.ini")
-                    if not os.path.isfile(ini_file):
-                        raise TrackEvalException(
-                            "ini file does not exist: "
-                            + seq
-                            + "/"
-                            + os.path.basename(ini_file)
-                        )
-                    ini_data = configparser.ConfigParser()
-                    ini_data.read(ini_file)
-                    seq_lengths[seq] = int(ini_data["Sequence"]["seqLength"])
+        for seq in self.sequence_set:
+            ini_file = os.path.join(self.gt_folder, seq, "seqinfo.ini")
+            if not os.path.isfile(ini_file):
+                raise TrackEvalException("ini file does not exist: " + ini_file)
+            ini_data = configparser.ConfigParser()
+            ini_data.read(ini_file)
+            seq_lengths[seq] = int(ini_data["Sequence"]["seqLength"])
+            seq_list.append(seq)
         return seq_list, seq_lengths
 
     def _load_raw_file(self, tracker, seq, is_gt):
@@ -216,29 +125,13 @@ class MotChallenge2DBox(_BaseDataset):
         [tracker_dets]: list (for each timestep) of lists of detections.
         """
         # File location
-        if self.data_is_zipped:
-            if is_gt:
-                zip_file = os.path.join(self.gt_fol, "data.zip")
-            else:
-                zip_file = os.path.join(
-                    self.tracker_fol, tracker, self.tracker_sub_fol + ".zip"
-                )
-            file = seq + ".txt"
+        if is_gt:
+            file = self.gt_loc_format.format(gt_folder=self.gt_folder, seq=seq)
         else:
-            zip_file = None
-            if is_gt:
-                file = self.config["GT_LOC_FORMAT"].format(
-                    gt_folder=self.gt_fol, seq=seq
-                )
-            else:
-                file = os.path.join(
-                    self.tracker_fol, tracker, self.tracker_sub_fol, seq + ".txt"
-                )
+            file = os.path.join(self.output_folder, f"{seq}.txt")
 
         # Load raw data from text file
-        read_data, ignore_data = self._load_simple_text_file(
-            file, is_zipped=self.data_is_zipped, zip_file=zip_file
-        )
+        read_data, ignore_data = self._load_simple_text_file(file)
 
         # Convert data to required format
         num_timesteps = self.seq_lengths[seq]
