@@ -53,6 +53,7 @@ class MotChallenge2DBox(_BaseDataset):
         )
         self.split_to_eval = self.config["SPLIT_TO_EVAL"]
         self.output_folder = self.config["OUTPUT_FOLDER"]
+        self.output_folder = self.output_folder if isinstance(self.output_folder, str) else self.output_folder[0]
         self.benchmark = self.config["BENCHMARK"]
         self.gt_folder = os.path.join(self.config["GT_FOLDER"], self.split_to_eval)
         self.gt_loc_format = self.config["GT_LOC_FORMAT"]
