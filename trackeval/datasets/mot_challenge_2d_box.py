@@ -58,9 +58,9 @@ class MotChallenge2DBox(_BaseDataset):
         self.gt_loc_format = self.config["GT_LOC_FORMAT"]
 
         self.sequence_set = set()
-        for _, dirs, __ in os.walk(self.gt_folder):
-            for d in dirs:
-                self.sequence_set.add(d)
+        for seq in os.listdir(self.gt_folder):
+            if os.path.isdir(os.path.join(self.gt_folder, seq)):
+                self.sequence_set.add(seq)
         print(f"sequence_set: {self.sequence_set}")
 
         # Get classes to eval
