@@ -56,6 +56,7 @@ class MotChallenge2DBox(_BaseDataset):
         self.benchmark = self.config["BENCHMARK"]
         self.gt_folder = os.path.join(self.config["GT_FOLDER"], self.split_to_eval)
         self.gt_loc_format = self.config["GT_LOC_FORMAT"]
+        self.tracker_list = ["ByteTrack"]
 
         self.sequence_set = set()
         for seq in os.listdir(self.gt_folder):
