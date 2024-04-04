@@ -126,6 +126,7 @@ class MotChallenge2DBox(_BaseDataset):
         [tracker_dets]: list (for each timestep) of lists of detections.
         """
         # File location
+        print(f"seq: {seq}")
         if is_gt:
             file = self.gt_loc_format.format(gt_folder=self.gt_folder, seq=seq)
         else:
