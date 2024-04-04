@@ -83,12 +83,6 @@ class MOTSChallenge(_BaseDataset):
                 if not os.path.isfile(curr_file):
                     print('GT file not found ' + curr_file)
                     raise TrackEvalException('GT file not found for sequence: ' + seq)
-        if self.data_is_zipped:
-            curr_file = os.path.join(self.gt_fol, 'data.zip')
-            if not os.path.isfile(curr_file):
-                print('GT file not found ' + curr_file)
-                raise TrackEvalException('GT file not found: ' + os.path.basename(curr_file))
-
         # Get trackers to eval
         if self.config['TRACKERS_TO_EVAL'] is None:
             self.tracker_list = os.listdir(self.tracker_fol)
